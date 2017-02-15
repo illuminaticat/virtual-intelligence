@@ -1,0 +1,271 @@
+/*
+ * This java program simulates two sheets of cortex as found in the brain.  
+ * Input creates oscillatory effects in the two cortices because input is 
+ * limited to one sheet. Neurons on the other sheet connect to other neurons 
+ * that will have the same value as the input neuron on the adjacent sheet. 
+ * The degree to which connections change is based on the error between the 
+ * input neuron and the adjacent neuron summing its connections. 
+ * All together a nonlocal hierarchy of oscillatory connection cycles are 
+ * produced from neurons trying to find connections that brings each neurons 
+ * corresponding neuron on the other sheet to an equilibrium.
+ * This current program uses random input so the hierarchy is not complex.
+ * With non random input a complex oscillatory hierarchy should emerge.
+ * In the brain the thalamus is the base oscillatory pacemaker.
+ * Cortical structures like the thalamus has not been added. 
+ * Output neurons have not been designated in this program.
+ *
+ */
+package javaapplication1;
+import java.util.Random;
+
+import java.awt.Color;
+import java.awt.Graphics;
+
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+
+public class JavaApplication1 extends JComponent implements Runnable {
+
+int ws = 100; //window_size = ws
+int synapses = 100;
+int input_num = 500;
+
+int[][] grid1 = new int[ws*2][ws*2];
+int[][] grid2 = new int[ws*2][ws*2];
+int[][] difference_node = new int[ws][ws];
+int[][] Data1 = new int[ws][ws];
+int[][] Data2 = new int[ws][ws];
+int[][] buffer1 = new int[ws][ws];
+int[][] buffer2 = new int[ws][ws];
+int[][] Cortex1 = new int[ws][ws];
+int[][] Cortex2 = new int[ws][ws];
+int[][] memory1 = new int[ws*ws][synapses];
+int[][] memory2 = new int[ws*ws][synapses];
+int[][] memory3 = new int[ws*ws][synapses];
+int[][] memory4 = new int[ws*ws][synapses];
+int[] input_values1 = new int[input_num];
+int[] input_values2 = new int[input_num];
+
+public JavaApplication1() {
+initialData();
+new Thread(this).start();
+}
+// End function
+public void run() {
+while (true) {
+try {
+changeData();
+repaint();
+Thread.sleep(50);
+} catch (InterruptedException e) {
+e.printStackTrace();
+}
+}
+}
+// End function
+// This funtion is just used once at the start of the program.
+private void initialData() {
+Random r = new Random();
+
+synchronized (Cortex1) { // lock paint
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+Cortex1[x][y] = r.nextInt(255);
+Cortex2[x][y] = r.nextInt(255);
+// Memory holds the neural connections. 
+for (int z = 0; z < synapses; z++) {
+// memory1 holds the first x values of Cortex1
+memory1[x*y][z] = r.nextInt(ws); 
+// memory2 holds the first y values of Cortex1
+memory2[x*y][z] = r.nextInt(ws); 
+// memory3 holds the second x values of Cortex2
+memory3[x*y][z] = r.nextInt(ws); 
+// memory4 holds the second y values of Cortex2
+memory4[x*y][z] = r.nextInt(ws); 
+}
+}
+}
+// The number of inputs is selected here.
+for (int x = 0; x < input_num; x++) {
+input_values1[x] = r.nextInt(ws); // The x values for input are selected.
+input_values2[x] = r.nextInt(ws); // The y values for input is selected.
+}
+}
+}
+// End function
+private void changeData() {
+synchronized (Cortex1) { // lock paint
+Random r = new Random();
+// This shows acumilated change of connections in Data1.
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+difference_node[x][y] = Math.abs(Cortex1[x][y] - Cortex2[x][y]);
+Data1[x][y] += difference_node[x][y];
+}
+}
+// A buffer is used to smooth out the pixel value for display.
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+buffer1[x][y] = 0;
+}
+}
+for (int x = 1; x < (ws - 1); x++) {
+for (int y = 1; y < (ws - 1); y++) {
+buffer1[x][y] = Math.abs((Data1[x][y] +
+                Data1[x][y-1] +
+                Data1[x][y+1] +
+                Data1[x+1][y] +
+                Data1[x-1][y] + 
+                Data1[x+1][y-1] +
+                Data1[x+1][y+1] +
+                Data1[x-1][y-1] +
+                Data1[x-1][y+1]) / 7);
+
+Data2[x][y] = buffer1[x][y];
+// Keep values in bounds.
+if (Data2[x][y] > 255 || Data2[x][y] < 2){
+Data2[x][y] = 192;
+}
+buffer1[x][y] = 0;
+}
+}
+for (int x = 1; x < (ws - 1); x++) {
+for (int y = 1; y < (ws - 1); y++) {
+grid1[x*2][y*2] = Data2[x][y];
+}
+}
+for (int x = 1; x < (ws - 1); x++) {
+for (int y = 1; y < (ws - 1); y++) {
+grid1[x*2+1][y*2] = (grid1[x*2][y*2] + grid1[x*2+2][y*2])/2;
+grid1[x*2][y*2+1] = (grid1[x*2][y*2] + grid1[x*2][y*2+2])/2;
+}
+}
+for (int x = 1; x < (ws - 1); x++) {
+for (int y = 1; y < (ws - 1); y++) {
+grid1[x*2+1][y*2+1] = (grid1[x*2+1][y*2] + 
+                       grid1[x*2][y*2+1] + 
+                       grid1[x*2-1][y*2] + 
+                       grid1[x*2][y*2-1])/4;
+}
+}
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+buffer1[x][y] = 0;
+}
+}
+for (int x = 1; x < (ws - 1); x++) {
+for (int y = 1; y < (ws - 1); y++) {
+buffer1[x][y] = Math.abs((grid1[x][y] +
+                grid1[x][y-1] +
+                grid1[x][y+1] +
+                grid1[x+1][y] +
+                grid1[x-1][y] + 
+                grid1[x+1][y-1] +
+                grid1[x+1][y+1] +
+                grid1[x-1][y-1] +
+                grid1[x-1][y+1]) / 9);
+
+grid1[x][y] = buffer1[x][y];
+// Keep values in bounds.
+if (grid1[x][y] > 255 || grid1[x][y] < 2){
+grid1[x][y] = 128;
+}
+buffer1[x][y] = 0;
+}
+}
+// Here is where input data can be added to the cortex.
+for (int x = 0; x < input_num; x++) {
+Cortex1[input_values1[x]][input_values2[x]] = r.nextInt(255);
+}
+// This is where a neuron adds up all of its connections.
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+buffer1[x][y] = 0;
+buffer2[x][y] = 0;
+}
+}
+int p1 = 0;
+int p2 = 0;
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+p1 = 0;
+p2 = 0;
+for (int z = 0; z < synapses; z++) {
+p1 += Cortex1[memory1[x*y][z]][memory2[x*y][z]];
+p2 += Cortex2[memory3[x*y][z]][memory4[x*y][z]];
+}
+buffer1[x][y] = p1 / synapses;
+buffer2[x][y] = p2 / synapses;
+}
+}
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+Cortex1[x][y] = buffer1[x][y];
+Cortex2[x][y] = buffer2[x][y];
+}
+}
+int pnum = 0; 
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+pnum += difference_node[x][y];
+// This is where connection are randomized depending on the diffrence between
+// cortex1 and cortex2.
+for (int z = 0; z < Math.abs(difference_node[x][y]/2); z++) {
+memory1[x*y][r.nextInt(synapses)] = r.nextInt(ws);
+memory2[x*y][r.nextInt(synapses)] = r.nextInt(ws);
+memory3[x*y][r.nextInt(synapses)] = r.nextInt(ws);
+memory4[x*y][r.nextInt(synapses)] = r.nextInt(ws);
+}
+}
+}
+System.out.println("Average number of randomized connections " + pnum / (ws*ws));
+// Keeps color in bounds
+int k = r.nextInt(255);
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+if (Data1[x][y] >= 255 || Data1[x][y] <= 0) {
+Data1[x][y] = 1;
+}
+}
+}
+for (int x = 0; x < ws; x++) {
+for (int y = 0; y < ws; y++) {
+if (Cortex1[x][y] >= 255 || Cortex1[x][y] <= 0) {
+Cortex1[x][y] = k;
+}
+if (Cortex2[x][y] >= 255 || Cortex2[x][y] <= 0) {
+Cortex2[x][y] = k;
+}
+}
+}
+}
+}
+// End function
+public void paint(Graphics g) {
+synchronized (Cortex1) { // do not paint while recalculating
+int resolution = 5; // Change the 5 to any number to change resolution.
+g.fillRect(0 + 00, 0 + 00, ws*resolution, ws*resolution);
+for (int x = 1; x < ws-1; x += 1) {
+for (int y = 1; y < ws-1; y += 1) {
+try {
+g.setColor(new Color(0, grid1[x][y], 0));
+g.fillRect(x*resolution + 00, y*resolution + 00, resolution, resolution);
+} catch (IllegalArgumentException ex) {
+System.out.println("Error value: " + grid1[x][y] + ", [x,y] = [" + x + "," + y +"]");
+}
+}
+}
+}
+}
+// End function
+public static void main(String[] args) {
+int ws = 500; //window_size = ws
+JFrame f = new JFrame("Cortex Ripples");
+f.add(new JavaApplication1());
+f.setSize((ws+16), (ws+39));
+f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+f.setVisible(true);
+}
+// End function
+}
+// End Program
